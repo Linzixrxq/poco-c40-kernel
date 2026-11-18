@@ -34,8 +34,9 @@ jobs:
           GH=$(printf '%s://%s.%s' 'https' 'github' 'com')
           git clone --depth=1 -b frost-kernelsu-docker-pure-stock-abi "$GH/Fakezay/c40.git" /tmp/fakezay
 
-          # 1. Переносим KernelSU v0.9.5 (Manual Hooks) без поломки ABI
+          # 1. Переносим KernelSU v0.9.5 (Manual Hooks) и создаем симлинк drivers/kernelsu
           cp -r /tmp/fakezay/KernelSU ./KernelSU
+          ln -sf ../KernelSU/kernel drivers/kernelsu
           cp -f /tmp/fakezay/drivers/Kconfig drivers/Kconfig
           cp -f /tmp/fakezay/drivers/Makefile drivers/Makefile
           cp -f /tmp/fakezay/fs/exec.c fs/exec.c
