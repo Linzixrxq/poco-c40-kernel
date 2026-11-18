@@ -20,11 +20,14 @@ jobs:
         run: |
           mkdir -p $HOME/toolchains
           cd $HOME/toolchains
-          HOST=$(printf '%s://%s.%s' 'https' 'github' 'com')
+          GH=$(printf '%s://%s.%s' 'https' 'github' 'com')
+          AOSP=$(printf '%s://%s.%s.%s' 'https' 'android' 'googlesource' 'com')
 
-          git clone --depth=1 -b lineage-18.1 "$HOST/LineageOS/android_prebuilts_clang_host_linux-x86_clang-r383902.git" clang-r383902
-          git clone --depth=1 -b lineage-18.1 "$HOST/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9.git" gcc64
-          git clone --depth=1 -b lineage-18.1 "$HOST/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9.git" gcc32
+          mkdir -p clang-r383902
+          curl -sL "$AOSP/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/android11-release/clang-r383902.tar.gz" | tar -xz -C clang-r383902
+
+          git clone --depth=1 -b lineage-18.1 "$GH/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9.git" gcc64
+          git clone --depth=1 -b lineage-18.1 "$GH/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9.git" gcc32
 
       - name: Create ld.lld wrapper (ABI preservation)
         run: |
