@@ -46,11 +46,11 @@ jobs:
           cp -f /tmp/fakezay/drivers/tty/pty.c drivers/tty/pty.c
           cp -f /tmp/fakezay/security/selinux/hooks.c security/selinux/hooks.c
 
-          # 2. Переносим таблицы частот и напряжений (Overclock OPP/Clock/DDR)
-          cp -f /tmp/fakezay/arch/arm64/boot/dts/jlq/jr510-opp.dtsi arch/arm64/boot/dts/jlq/jr510-opp.dtsi
-          cp -f /tmp/fakezay/arch/arm64/boot/dts/jlq/jr510-clock.dtsi arch/arm64/boot/dts/jlq/jr510-clock.dtsi
-          cp -f /tmp/fakezay/arch/arm64/boot/dts/jlq/jr510-ddr_dvfs.dtsi arch/arm64/boot/dts/jlq/jr510-ddr_dvfs.dtsi
+          # 2. Переносим таблицы частот и напряжений (Overclock CPU 2.2GHz / OPP / DDR / Thermal)
           cp -f /tmp/fakezay/arch/arm64/boot/dts/jlq/jlq_jr510.dts arch/arm64/boot/dts/jlq/jlq_jr510.dts
+          cp -f /tmp/fakezay/arch/arm64/boot/dts/jlq/jr510-opp.dtsi arch/arm64/boot/dts/jlq/jr510-opp.dtsi
+          cp -f /tmp/fakezay/arch/arm64/boot/dts/jlq/jr510-ddr_dvfs.dtsi arch/arm64/boot/dts/jlq/jr510-ddr_dvfs.dtsi
+          cp -f /tmp/fakezay/arch/arm64/boot/dts/jlq/jr510-thermal.dtsi arch/arm64/boot/dts/jlq/jr510-thermal.dtsi
 
       - name: Create ld.lld wrapper (ABI preservation)
         run: |
@@ -96,4 +96,5 @@ jobs:
           name: poco-c40-megakernel
           path: |
             out/arch/arm64/boot/Image.gz
+            out/arch/arm64/boot/dts/jlq/*.dtb
             out/arch/arm64/boot/dts/jlq/*.dtbo
