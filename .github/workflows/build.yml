@@ -32,8 +32,8 @@ jobs:
       - name: Apply KernelSU v0.9.5 & Overclock tables from Fakezay
         run: |
           GH=$(printf '%s://%s.%s' 'https' 'github' 'com')
-       git clone --depth=1 --recursive -b frost-kernelsu-docker-pure-stock-abi "$GH/Fakezay/c40.git" /tmp/fakezay
-       git -C /tmp/fakezay submodule update --init --recursive
+        git clone --depth=1 --recursive -b frost-kernelsu-docker-pure-stock-abi "$GH/Fakezay/c40.git" /tmp/fakezay
+        git -C /tmp/fakezay submodule update --init --recursive
 
           # 1. Переносим KernelSU v0.9.5 (Manual Hooks) и создаем симлинк drivers/kernelsu
           cp -r /tmp/fakezay/KernelSU ./KernelSU
