@@ -1,4 +1,4 @@
-name: Build POCO C40 Kernel (LineageOS 18.1)
+name: Build POCO C40 Mega-Kernel (LineageOS 18.1)
 
 on:
   workflow_dispatch:
@@ -29,6 +29,28 @@ jobs:
           git clone --depth=1 -b lineage-18.1 "$GH/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9.git" gcc64
           git clone --depth=1 -b lineage-18.1 "$GH/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9.git" gcc32
 
+      - name: Apply KernelSU v0.9.5 & Overclock tables from Fakezay
+        run: |
+          GH=$(printf '%s://%s.%s' 'https' 'github' 'com')
+          git clone --depth=1 -b frost-kernelsu-docker-pure-stock-abi "$GH/Fakezay/c40.git" /tmp/fakezay
+
+          # 1. Переносим KernelSU v0.9.5 (Manual Hooks) без поломки ABI
+          cp -r /tmp/fakezay/KernelSU ./KernelSU
+          cp -f /tmp/fakezay/drivers/Kconfig drivers/Kconfig
+          cp -f /tmp/fakezay/drivers/Makefile drivers/Makefile
+          cp -f /tmp/fakezay/fs/exec.c fs/exec.c
+          cp -f /tmp/fakezay/fs/open.c fs/open.c
+          cp -f /tmp/fakezay/fs/read_write.c fs/read_write.c
+          cp -f /tmp/fakezay/fs/stat.c fs/stat.c
+          cp -f /tmp/fakezay/drivers/input/input.c drivers/input/input.c
+          cp -f /tmp/fakezay/drivers/tty/pty.c drivers/tty/pty.c
+          cp -f /tmp/fakezay/security/selinux/hooks.c security/selinux/hooks.c
+
+          # 2. Переносим таблицы частот и напряжений (Overclock OPP/Clock/DDR)
+          cp -f /tmp/fakezay/arch/arm64/boot/dts/jlq/jr510-opp.dtsi arch/arm64/boot/dts/jlq/jr510-opp.dtsi
+          cp -f /tmp/fakezay/arch/arm64/boot/dts/jlq/jr510-clock.dtsi arch/arm64/boot/dts/jlq/jr510-clock.dtsi
+          cp -f /tmp/fakezay/arch/arm64/boot/dts/jlq/jr510-ddr_dvfs.dtsi arch/arm64/boot/dts/jlq/jr510-ddr_dvfs.dtsi
+
       - name: Create ld.lld wrapper (ABI preservation)
         run: |
           mkdir -p $HOME/wrapper
@@ -38,21 +60,39 @@ jobs:
           EOF
           chmod +x $HOME/wrapper/ld.lld-wrapper
 
-      - name: Compile Kernel (Image.gz)
+      - name: Compile Mega-Kernel (Image.gz & dtbo.img)
         run: |
           export PATH="$HOME/toolchains/clang-r383902/bin:$HOME/toolchains/gcc64/bin:$HOME/toolchains/gcc32/bin:$PATH"
           mkdir -p out
           cp configs/lineage-frost-kernel1.config out/.config
+
+          # Включаем KernelSU (без kprobes), WireGuard и TCP BBR поверх сети LineageOS
+          cat << 'EOF' >> out/.config
+          CONFIG_KSU=y
+          # CONFIG_KSU_WITH_KPROBES is not set
+          CONFIG_WIREGUARD=y
+          CONFIG_TCP_CONG_BBR=y
+          CONFIG_DEFAULT_TCP_CONG="bbr"
+          EOF
 
           make O=out ARCH=arm64 LLVM=1 LLVM_IAS=1 \
             CROSS_COMPILE=aarch64-linux-android- \
             CROSS_COMPILE_COMPAT=arm-linux-androideabi- \
             CLANG_TRIPLE=aarch64-linux-gnu- \
             LD=$HOME/wrapper/ld.lld-wrapper \
-            -j$(nproc) Image.gz
+            olddefconfig
 
-      - name: Upload compiled Image.gz
+          make O=out ARCH=arm64 LLVM=1 LLVM_IAS=1 \
+            CROSS_COMPILE=aarch64-linux-android- \
+            CROSS_COMPILE_COMPAT=arm-linux-androideabi- \
+            CLANG_TRIPLE=aarch64-linux-gnu- \
+            LD=$HOME/wrapper/ld.lld-wrapper \
+            -j$(nproc) Image.gz dtbs
+
+      - name: Upload compiled Mega-Kernel artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: poco-c40-kernel-Image.gz
-          path: out/arch/arm64/boot/Image.gz
+          name: poco-c40-megakernel
+          path: |
+            out/arch/arm64/boot/Image.gz
+            out/arch/arm64/boot/dts/jlq/*.dtbo
