@@ -49,8 +49,6 @@ jobs:
           # 2. Переносим таблицы частот и напряжений (Overclock CPU 2.2GHz / OPP / DDR / Thermal)
           cp -f /tmp/fakezay/arch/arm64/boot/dts/jlq/jlq_jr510.dts arch/arm64/boot/dts/jlq/jlq_jr510.dts
           cp -f /tmp/fakezay/arch/arm64/boot/dts/jlq/jr510-opp.dtsi arch/arm64/boot/dts/jlq/jr510-opp.dtsi
-          cp -f /tmp/fakezay/arch/arm64/boot/dts/jlq/jr510-ddr_dvfs.dtsi arch/arm64/boot/dts/jlq/jr510-ddr_dvfs.dtsi
-          cp -f /tmp/fakezay/arch/arm64/boot/dts/jlq/jr510-thermal.dtsi arch/arm64/boot/dts/jlq/jr510-thermal.dtsi
 
       - name: Create ld.lld wrapper (ABI preservation)
         run: |
