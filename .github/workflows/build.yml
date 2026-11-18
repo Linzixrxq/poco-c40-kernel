@@ -1,0 +1,60 @@
+name: Build POCO C40 Kernel (LineageOS 18.1)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout kernel source
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bc bison build-essential ccache curl flex git libssl-dev libncurses5-dev lz4 python3 python-is-python3 unzip wget zip
+
+      - name: Download Toolchains (clang-r383902 & GCC 4.9)
+        run: |
+          mkdir -p $HOME/toolchains
+          cd $HOME/toolchains
+
+          # Скачиваем точный clang-r383902 из AOSP
+          mkdir -p clang-r383902
+          wget -q https://googlesource.com -O clang.tar.gz
+          tar -xzf clang.tar.gz -C clang-r383902
+          rm clang.tar.gz
+
+          # Скачиваем GCC 4.9 для arm64 и arm из LineageOS 18.1
+          git clone --depth=1 -b lineage-18.1 https://github.com gcc64
+          git clone --depth=1 -b lineage-18.1 https://github.com gcc32
+
+      - name: Create ld.lld wrapper (ABI preservation)
+        run: |
+          mkdir -p $HOME/wrapper
+          cat << 'EOF' > $HOME/wrapper/ld.lld-wrapper
+          #!/bin/bash
+          exec $HOME/toolchains/clang-r383902/bin/ld.lld --no-threads --thinlto-jobs=1 "$@"
+          EOF
+          chmod +x $HOME/wrapper/ld.lld-wrapper
+
+      - name: Compile Kernel (Image.gz)
+        run: |
+          export PATH="$HOME/toolchains/clang-r383902/bin:$HOME/toolchains/gcc64/bin:$HOME/toolchains/gcc32/bin:$PATH"
+          mkdir -p out
+          cp configs/lineage-frost-kernel1.config out/.config
+
+          make O=out ARCH=arm64 LLVM=1 LLVM_IAS=1 \
+            CROSS_COMPILE=aarch64-linux-android- \
+            CROSS_COMPILE_COMPAT=arm-linux-androideabi- \
+            CLANG_TRIPLE=aarch64-linux-gnu- \
+            LD=$HOME/wrapper/ld.lld-wrapper \
+            -j$(nproc) Image.gz
+
+      - name: Upload compiled Image.gz
+        uses: actions/upload-artifact@v4
+        with:
+          name: poco-c40-kernel-Image.gz
+          path: out/arch/arm64/boot/Image.gz
