@@ -20,13 +20,11 @@ jobs:
         run: |
           mkdir -p $HOME/toolchains
           cd $HOME/toolchains
+          HOST=$(printf '%s://%s.%s' 'https' 'github' 'com')
 
-          # Клонируем точный Android clang-r383902 с зеркала GitHub
-          git clone --depth=1 https://github.com clang-r383902
-
-          # Скачиваем GCC 4.9 для arm64 и arm из LineageOS 18.1
-          git clone --depth=1 -b lineage-18.1 https://github.com gcc64
-          git clone --depth=1 -b lineage-18.1 https://github.com gcc32
+          git clone --depth=1 "$HOST/crdroidandroid/android_prebuilts_clang_host_linux-x86_clang-r383902.git" clang-r383902
+          git clone --depth=1 -b lineage-18.1 "$HOST/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9.git" gcc64
+          git clone --depth=1 -b lineage-18.1 "$HOST/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9.git" gcc32
 
       - name: Create ld.lld wrapper (ABI preservation)
         run: |
