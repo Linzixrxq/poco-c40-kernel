@@ -50,6 +50,7 @@ jobs:
           cp -f /tmp/fakezay/arch/arm64/boot/dts/jlq/jr510-opp.dtsi arch/arm64/boot/dts/jlq/jr510-opp.dtsi
           cp -f /tmp/fakezay/arch/arm64/boot/dts/jlq/jr510-clock.dtsi arch/arm64/boot/dts/jlq/jr510-clock.dtsi
           cp -f /tmp/fakezay/arch/arm64/boot/dts/jlq/jr510-ddr_dvfs.dtsi arch/arm64/boot/dts/jlq/jr510-ddr_dvfs.dtsi
+          cp -f /tmp/fakezay/arch/arm64/boot/dts/jlq/jlq_jr510.dts arch/arm64/boot/dts/jlq/jlq_jr510.dts
 
       - name: Create ld.lld wrapper (ABI preservation)
         run: |
