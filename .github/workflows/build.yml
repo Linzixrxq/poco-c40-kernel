@@ -21,11 +21,8 @@ jobs:
           mkdir -p $HOME/toolchains
           cd $HOME/toolchains
 
-          # Скачиваем точный clang-r383902 из AOSP
-          mkdir -p clang-r383902
-          wget -q https://googlesource.com -O clang.tar.gz
-          tar -xzf clang.tar.gz -C clang-r383902
-          rm clang.tar.gz
+          # Клонируем точный Android clang-r383902 с зеркала GitHub
+          git clone --depth=1 https://github.com clang-r383902
 
           # Скачиваем GCC 4.9 для arm64 и arm из LineageOS 18.1
           git clone --depth=1 -b lineage-18.1 https://github.com gcc64
