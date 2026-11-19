@@ -41,6 +41,7 @@ jobs:
           ln -sf ../KernelSU/kernel drivers/kernelsu
           cp -f /tmp/fakezay/drivers/Kconfig drivers/Kconfig
           cp -f /tmp/fakezay/drivers/Makefile drivers/Makefile
+       echo "ccflags-y += -DKSU_MANUAL_HOOK" >> KernelSU/kernel/Makefile
           cp -f /tmp/fakezay/fs/exec.c fs/exec.c
           cp -f /tmp/fakezay/fs/open.c fs/open.c
           cp -f /tmp/fakezay/fs/read_write.c fs/read_write.c
@@ -70,12 +71,13 @@ jobs:
 
           # Включаем KernelSU (без kprobes), WireGuard и TCP BBR поверх сети LineageOS
           sed -i 's/depends on KPROBES//g' KernelSU/kernel/Kconfig
-          ./scripts/config --file out/.config \
-            -e CONFIG_KSU \
-            -d CONFIG_KSU_WITH_KPROBES \
-            -e CONFIG_WIREGUARD \
-            -e CONFIG_TCP_CONG_BBR \
-            --set-str CONFIG_DEFAULT_TCP_CONG "bbr"
+       ./scripts/config --file out/.config \
+         -e CONFIG_KSU \
+         -e CONFIG_KERNELSU \
+         -d CONFIG_KSU_WITH_KPROBES \
+         -e CONFIG_WIREGUARD \
+         -e CONFIG_TCP_CONG_BBR \
+         --set-str CONFIG_DEFAULT_TCP_CONG "bbr"
 
           make O=out ARCH=arm64 LLVM=1 LLVM_IAS=1 \
             CROSS_COMPILE=aarch64-linux-android- \
