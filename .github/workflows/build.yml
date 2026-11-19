@@ -58,8 +58,19 @@ jobs:
       - name: Compile Kernel & DTB
         working-directory: kernel
         run: |
-          export PATH="$PWD/../clang/bin:$PATH"
-          make -j$(nproc) O=out ARCH=arm64 CC=clang CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- Image.gz dtbs
+          export PATH="$PWD/../clang/bin:$PWD/../gcc64/bin:$PWD/../gcc32/bin:$PATH"
+          make -j$(nproc) O=out ARCH=arm64 \
+            CC=clang \
+            LD=ld.lld \
+            AR=llvm-ar \
+            NM=llvm-nm \
+            OBJCOPY=llvm-objcopy \
+            OBJDUMP=llvm-objdump \
+            STRIP=llvm-strip \
+            CLANG_TRIPLE=aarch64-linux-gnu- \
+            CROSS_COMPILE=aarch64-linux-android- \
+            CROSS_COMPILE_ARM32=arm-linux-androideabi- \
+            Image.gz dtbs
 
       - name: Verify KABI offsets
         working-directory: kernel
