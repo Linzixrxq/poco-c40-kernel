@@ -12,12 +12,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y bc bison build-essential ccache curl flex git libssl-dev libncurses5-dev dwarves python3 python-is-python3 zip unzip wget
 
-      - name: Clone Fakezay Kernel & Clang
+      - name: Clone Fakezay Kernel & Toolchains
         run: |
-          GH="https://github.com"
+          GH=$(printf '%s://%s.%s' 'https' 'github' 'com')
+          AOSP=$(printf '%s://%s.%s.%s' 'https' 'android' 'googlesource' 'com')
           git clone --depth=1 "$GH/Fakezay/c40.git" kernel
-          mkdir -p clang
-          curl -sL "https://googlesource.com" | tar -xz -C clang
+          mkdir -p clang gcc64 gcc32
+          curl -sL "$AOSP/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/android11-release/clang-r383902.tar.gz" | tar -xz -C clang
+          git clone --depth=1 -b lineage-18.1 "$GH/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9.git" gcc64
+          git clone --depth=1 -b lineage-18.1 "$GH/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9.git" gcc32
 
       - name: Configure Kernel (Stock Network + KSU + WireGuard, NO Docker)
         working-directory: kernel
