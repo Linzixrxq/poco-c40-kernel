@@ -35,8 +35,9 @@ jobs:
           git clone --depth=1 --recursive -b frost-kernelsu-docker-pure-stock-abi "$GH/Fakezay/c40.git" /tmp/fakezay
           git -C /tmp/fakezay submodule update --init --recursive
 
-          # 1. Переносим KernelSU v0.9.5 (Manual Hooks) и создаем симлинк drivers/kernelsu
-          cp -r /tmp/fakezay/KernelSU ./KernelSU
+          # 1. Скачиваем реальные исходники KernelSU v0.9.5 и ставим хуки Fakezay
+          rm -rf KernelSU drivers/kernelsu
+          git clone --depth=1 -b v0.9.5 "$GH/tiann/KernelSU.git" KernelSU
           ln -sf ../KernelSU/kernel drivers/kernelsu
           cp -f /tmp/fakezay/drivers/Kconfig drivers/Kconfig
           cp -f /tmp/fakezay/drivers/Makefile drivers/Makefile
