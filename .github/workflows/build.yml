@@ -41,7 +41,7 @@ jobs:
           ln -sf ../KernelSU/kernel drivers/kernelsu
           cp -f /tmp/fakezay/drivers/Kconfig drivers/Kconfig
           cp -f /tmp/fakezay/drivers/Makefile drivers/Makefile
-       echo "ccflags-y += -DKSU_MANUAL_HOOK" >> KernelSU/kernel/Makefile
+          echo "ccflags-y += -DKSU_MANUAL_HOOK" >> KernelSU/kernel/Makefile
           cp -f /tmp/fakezay/fs/exec.c fs/exec.c
           cp -f /tmp/fakezay/fs/open.c fs/open.c
           cp -f /tmp/fakezay/fs/read_write.c fs/read_write.c
