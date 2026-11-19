@@ -14,8 +14,10 @@ jobs:
 
       - name: Clone Fakezay Kernel & Clang
         run: |
-          git clone --depth=1 https://github.com kernel
-          git clone --depth=1 https://gitlab.com clang
+          GH="https://github.com"
+          GL="https://gitlab.com"
+          git clone --depth=1 "$GH/Fakezay/c40.git" kernel
+          git clone --depth=1 "$GL/crdroidandroid/android_prebuilts_clang_host_linux-x86_clang-r416183b.git" clang
 
       - name: Configure Kernel (Stock Network + KSU + WireGuard, NO Docker)
         working-directory: kernel
