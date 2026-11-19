@@ -22,19 +22,29 @@ jobs:
           git clone --depth=1 -b lineage-18.1 "$GH/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9.git" gcc64
           git clone --depth=1 -b lineage-18.1 "$GH/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9.git" gcc32
 
-      - name: Configure Kernel (Stock Network + KSU + WireGuard, NO Docker)
+      - name: Configure Kernel (Fakezay Base + NO Docker)
         working-directory: kernel
         run: |
-          # Берём чистый стоковый конфиг из репозитория Fakezay (без Docker!)
-          cp configs_frost/config_stock_5.4.242-jgki-perfuser .config || make O=out ARCH=arm64 frost_defconfig
-          mkdir -p out
-          cp .config out/.config
+          make O=out ARCH=arm64 frost_kernelsu_docker_defconfig
 
-          # Включаем ТОЛЬКО KernelSU v0.9.5 (manual hooks), WireGuard и TCP BBR — БЕЗ Docker!
+          # Вырезаем ВСЁ, что связано с Docker и ломает сеть в LineageOS 18.1, оставляя KSU, TWRP, WireGuard и BBR!
           ./scripts/config --file out/.config \
+            -d CONFIG_NAMESPACES \
+            -d CONFIG_UTS_NS \
+            -d CONFIG_IPC_NS \
+            -d CONFIG_PID_NS \
+            -d CONFIG_NET_NS \
+            -d CONFIG_USER_NS \
+            -d CONFIG_VETH \
+            -d CONFIG_BRIDGE \
+            -d CONFIG_BRIDGE_NETFILTER \
+            -d CONFIG_MACVLAN \
+            -d CONFIG_CGROUP_DEVICE \
+            -d CONFIG_CGROUP_PIDS \
+            -d CONFIG_POSIX_MQUEUE \
+            -d CONFIG_IP_SET \
+            -d CONFIG_NETFILTER_XT_MATCH_ADDRTYPE \
             -e CONFIG_KSU \
-            -e CONFIG_KSU_MANUAL_HOOK \
-            -d CONFIG_KSU_KPROBES_HOOK \
             -e CONFIG_NET_UDP_TUNNEL \
             -e CONFIG_DST_CACHE \
             -e CONFIG_WIREGUARD \
