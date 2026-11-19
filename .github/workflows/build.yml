@@ -69,9 +69,13 @@ jobs:
             -e CONFIG_KSU \
             -e CONFIG_KSU_MANUAL_HOOK \
             -d CONFIG_KSU_KPROBES_HOOK \
+            -e CONFIG_NET_UDP_TUNNEL \
+            -e CONFIG_DST_CACHE \
             -e CONFIG_WIREGUARD \
             -e CONFIG_OVERLAY_FS \
+            -e CONFIG_TCP_CONG_ADVANCED \
             -e CONFIG_TCP_CONG_BBR \
+            -e CONFIG_DEFAULT_BBR \
             --set-str CONFIG_DEFAULT_TCP_CONG "bbr"
 
           make O=out ARCH=arm64 LLVM=1 LLVM_IAS=1 \
@@ -90,14 +94,19 @@ jobs:
 
       - name: Verify KABI offsets (Wi-Fi & Modem safety check)
         run: |
-          echo "=== Checking KABI struct sizes with pahole ==="
-          pahole -C net out/vmlinux | grep -E "size:|dev_base_head" || true
-          pahole -C net_device out/vmlinux | grep -E "size:|ifindex" || true
+          echo "=== Checking KABI critical offsets with pahole ==="
+          pahole -C net_device out/vmlinux | grep -E "rx_handler.*792|pcpu_refcnt.*1144"
+          pahole -C net out/vmlinux | grep -E "gen.*3168"
+
+      - name: Pack Image.gz-dtb
+        run: |
+          cat out/arch/arm64/boot/Image.gz out/arch/arm64/boot/dts/jlq/jlq_jr510.dtb > out/arch/arm64/boot/Image.gz-dtb
 
       - name: Upload compiled Mega-Kernel artifacts
         uses: actions/upload-artifact@v4
         with:
           name: poco-c40-megakernel
           path: |
+            out/arch/arm64/boot/Image.gz-dtb
             out/arch/arm64/boot/Image.gz
             out/arch/arm64/boot/dts/jlq/*.dtb
