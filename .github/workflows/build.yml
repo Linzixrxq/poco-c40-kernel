@@ -1,4 +1,4 @@
-name: Build POCO C40 Mega-Kernel (LineageOS 18.1)
+name: Build POCO C40 Clean Mega-Kernel (No Docker)
 
 on:
   workflow_dispatch:
@@ -6,65 +6,26 @@ on:
 jobs:
   build:
     runs-on: ubuntu-22.04
-
     steps:
-      - name: Checkout kernel source
-        uses: actions/checkout@v4
-
-      - name: Install system dependencies
+      - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y bc bison build-essential ccache curl dwarves flex git libssl-dev libncurses5-dev lz4 python3 python-is-python3 unzip wget zip
+          sudo apt-get install -y bc bison build-essential ccache curl flex git libssl-dev libncurses5-dev dwarves python3 python-is-python3 zip unzip wget
 
-      - name: Download Toolchains (clang-r383902 & GCC 4.9)
+      - name: Clone Fakezay Kernel & Clang
         run: |
-          mkdir -p $HOME/toolchains
-          cd $HOME/toolchains
-          GH=$(printf '%s://%s.%s' 'https' 'github' 'com')
-          AOSP=$(printf '%s://%s.%s.%s' 'https' 'android' 'googlesource' 'com')
+          git clone --depth=1 https://github.com kernel
+          git clone --depth=1 https://gitlab.com clang
 
-          mkdir -p clang-r383902
-          curl -sL "$AOSP/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/android11-release/clang-r383902.tar.gz" | tar -xz -C clang-r383902
-
-          git clone --depth=1 -b lineage-18.1 "$GH/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9.git" gcc64
-          git clone --depth=1 -b lineage-18.1 "$GH/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9.git" gcc32
-
-      - name: Apply KernelSU (Manual Hooks) & Overclock tables
+      - name: Configure Kernel (Stock Network + KSU + WireGuard, NO Docker)
+        working-directory: kernel
         run: |
-          GH=$(printf '%s://%s.%s' 'https' 'github' 'com')
-          git clone --depth=1 -b frost-kernelsu-docker-pure-stock-abi "$GH/Fakezay/c40.git" /tmp/fakezay
-
-          # 1. Ставим KernelSU с нативной поддержкой manual hooks (rsuntk/KernelSU)
-          git clone --depth=1 "$GH/rsuntk/KernelSU.git" KernelSU
-          ln -sf ../KernelSU/kernel drivers/kernelsu
-          echo 'obj-$(CONFIG_KSU) += kernelsu/' >> drivers/Makefile
-          sed -i '/endmenu/i source "drivers/kernelsu/Kconfig"' drivers/Kconfig
-
-          # 2. Вместо слепой перезаписи файлов rison1337 переносим только чистые хуки из Fakezay через diff
-          for f in fs/exec.c fs/open.c fs/read_write.c fs/stat.c drivers/input/input.c drivers/tty/pty.c security/selinux/hooks.c; do
-            cp -f "/tmp/fakezay/$f" "$f"
-          done
-
-          # 3. Переносим таблицы разгона CPU до 2.2GHz (для dtb)
-          cp -f /tmp/fakezay/arch/arm64/boot/dts/jlq/jlq_jr510.dts arch/arm64/boot/dts/jlq/jlq_jr510.dts
-          cp -f /tmp/fakezay/arch/arm64/boot/dts/jlq/jr510-opp.dtsi arch/arm64/boot/dts/jlq/jr510-opp.dtsi
-
-      - name: Create ld.lld wrapper (ABI preservation)
-        run: |
-          mkdir -p $HOME/wrapper
-          cat << 'EOF' > $HOME/wrapper/ld.lld-wrapper
-          #!/bin/bash
-          exec $HOME/toolchains/clang-r383902/bin/ld.lld --no-threads --thinlto-jobs=1 "$@"
-          EOF
-          chmod +x $HOME/wrapper/ld.lld-wrapper
-
-      - name: Compile Mega-Kernel (Image.gz & dtb)
-        run: |
-          export PATH="$HOME/toolchains/clang-r383902/bin:$HOME/toolchains/gcc64/bin:$HOME/toolchains/gcc32/bin:$PATH"
+          # Берём чистый стоковый конфиг из репозитория Fakezay (без Docker!)
+          cp configs_frost/config_stock_5.4.242-jgki-perfuser .config || make O=out ARCH=arm64 frost_defconfig
           mkdir -p out
-          cp configs/lineage-frost-kernel1.config out/.config
+          cp .config out/.config
 
-          # Включаем KernelSU (manual hooks) и TCP BBR (без WireGuard, чтобы сохранить KABI для Wi-Fi и модема!)
+          # Включаем ТОЛЬКО KernelSU v0.9.5 (manual hooks), WireGuard и TCP BBR — БЕЗ Docker!
           ./scripts/config --file out/.config \
             -e CONFIG_KSU \
             -e CONFIG_KSU_MANUAL_HOOK \
@@ -72,41 +33,29 @@ jobs:
             -e CONFIG_NET_UDP_TUNNEL \
             -e CONFIG_DST_CACHE \
             -e CONFIG_WIREGUARD \
-            -e CONFIG_OVERLAY_FS \
             -e CONFIG_TCP_CONG_ADVANCED \
             -e CONFIG_TCP_CONG_BBR \
             -e CONFIG_DEFAULT_BBR \
             --set-str CONFIG_DEFAULT_TCP_CONG "bbr"
 
-          make O=out ARCH=arm64 LLVM=1 LLVM_IAS=1 \
-            CROSS_COMPILE=aarch64-linux-android- \
-            CROSS_COMPILE_COMPAT=arm-linux-androideabi- \
-            CLANG_TRIPLE=aarch64-linux-gnu- \
-            LD=$HOME/wrapper/ld.lld-wrapper \
-            olddefconfig
+          make O=out ARCH=arm64 olddefconfig
 
-          make O=out ARCH=arm64 LLVM=1 LLVM_IAS=1 \
-            CROSS_COMPILE=aarch64-linux-android- \
-            CROSS_COMPILE_COMPAT=arm-linux-androideabi- \
-            CLANG_TRIPLE=aarch64-linux-gnu- \
-            LD=$HOME/wrapper/ld.lld-wrapper \
-            -j$(nproc) Image.gz dtbs
-
-      - name: Verify KABI offsets (Wi-Fi & Modem safety check)
+      - name: Compile Kernel & DTB
+        working-directory: kernel
         run: |
-          echo "=== Checking KABI critical offsets with pahole ==="
+          export PATH="$PWD/../clang/bin:$PATH"
+          make -j$(nproc) O=out ARCH=arm64 CC=clang CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- Image.gz dtbs
+
+      - name: Verify KABI offsets
+        working-directory: kernel
+        run: |
           pahole -C net_device out/vmlinux | grep -E "rx_handler.*792|pcpu_refcnt.*1144"
           pahole -C net out/vmlinux | grep -E "gen.*3168"
 
-      - name: Pack Image.gz-dtb
-        run: |
-          cat out/arch/arm64/boot/Image.gz out/arch/arm64/boot/dts/jlq/jlq_jr510.dtb > out/arch/arm64/boot/Image.gz-dtb
-
-      - name: Upload compiled Mega-Kernel artifacts
+      - name: Upload Clean Kernel & DTB
         uses: actions/upload-artifact@v4
         with:
-          name: poco-c40-megakernel
+          name: clean-fakezay-kernel
           path: |
-            out/arch/arm64/boot/Image.gz-dtb
-            out/arch/arm64/boot/Image.gz
-            out/arch/arm64/boot/dts/jlq/*.dtb
+            kernel/out/arch/arm64/boot/Image.gz
+            kernel/out/arch/arm64/boot/dts/jlq/*.dtb
