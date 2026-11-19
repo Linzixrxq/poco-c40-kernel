@@ -44,6 +44,7 @@ jobs:
             -d CONFIG_POSIX_MQUEUE \
             -d CONFIG_IP_SET \
             -d CONFIG_NETFILTER_XT_MATCH_ADDRTYPE \
+            -e CONFIG_SECTION_MISMATCH_WARN_ONLY \
             -e CONFIG_KSU \
             -e CONFIG_NET_UDP_TUNNEL \
             -e CONFIG_DST_CACHE \
