@@ -41,7 +41,7 @@ jobs:
           ln -sf ../KernelSU/kernel drivers/kernelsu
           cp -f /tmp/fakezay/drivers/Kconfig drivers/Kconfig
           echo 'obj-y += kernelsu/' >> drivers/Makefile
-          sed -i '1i ccflags-y += -DKSU_MANUAL_HOOK -DCONFIG_KSU=1' KernelSU/kernel/Makefile
+          sed -i '1i CONFIG_KSU := y\nobj-y += kernelsu.o\nccflags-y += -DKSU_MANUAL_HOOK -DCONFIG_KSU=1' KernelSU/kernel/Makefile
           sed -i 's/#ifdef CONFIG_KSU_WITH_KPROBES/#if 0/g' KernelSU/kernel/*.c KernelSU/kernel/*.h
           sed -i 's/#ifndef CONFIG_KSU_WITH_KPROBES/#if 1/g' KernelSU/kernel/*.c KernelSU/kernel/*.h
           cp -f /tmp/fakezay/fs/exec.c fs/exec.c
