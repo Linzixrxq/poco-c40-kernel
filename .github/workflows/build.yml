@@ -14,7 +14,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y bc bison build-essential ccache curl flex git libssl-dev libncurses5-dev lz4 python3 python-is-python3 unzip wget zip
+          sudo apt-get install -y bc bison build-essential ccache curl dwarves flex git libssl-dev libncurses5-dev lz4 python3 python-is-python3 unzip wget zip
 
       - name: Download Toolchains (clang-r383902 & GCC 4.9)
         run: |
@@ -29,30 +29,23 @@ jobs:
           git clone --depth=1 -b lineage-18.1 "$GH/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9.git" gcc64
           git clone --depth=1 -b lineage-18.1 "$GH/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9.git" gcc32
 
-      - name: Apply KernelSU v0.9.5 & Overclock tables from Fakezay
+      - name: Apply KernelSU (Manual Hooks) & Overclock tables
         run: |
           GH=$(printf '%s://%s.%s' 'https' 'github' 'com')
-          git clone --depth=1 --recursive -b frost-kernelsu-docker-pure-stock-abi "$GH/Fakezay/c40.git" /tmp/fakezay
-          git -C /tmp/fakezay submodule update --init --recursive
+          git clone --depth=1 -b frost-kernelsu-docker-pure-stock-abi "$GH/Fakezay/c40.git" /tmp/fakezay
 
-          # 1. Скачиваем реальные исходники KernelSU v0.9.5 и ставим хуки Fakezay
-          rm -rf KernelSU drivers/kernelsu
-          git clone --depth=1 -b v0.9.5 "$GH/tiann/KernelSU.git" KernelSU
+          # 1. Ставим KernelSU с нативной поддержкой manual hooks (rsuntk/KernelSU)
+          git clone --depth=1 "$GH/rsuntk/KernelSU.git" KernelSU
           ln -sf ../KernelSU/kernel drivers/kernelsu
-          cp -f /tmp/fakezay/drivers/Kconfig drivers/Kconfig
-          echo 'obj-y += kernelsu/' >> drivers/Makefile
-          sed -i '1i CONFIG_KSU := y\nobj-y += kernelsu.o\nccflags-y += -DKSU_MANUAL_HOOK -DCONFIG_KSU=1' KernelSU/kernel/Makefile
-          sed -i 's/#ifdef CONFIG_KSU_WITH_KPROBES/#if 0/g' KernelSU/kernel/*.c KernelSU/kernel/*.h
-          sed -i 's/#ifndef CONFIG_KSU_WITH_KPROBES/#if 1/g' KernelSU/kernel/*.c KernelSU/kernel/*.h
-          cp -f /tmp/fakezay/fs/exec.c fs/exec.c
-          cp -f /tmp/fakezay/fs/open.c fs/open.c
-          cp -f /tmp/fakezay/fs/read_write.c fs/read_write.c
-          cp -f /tmp/fakezay/fs/stat.c fs/stat.c
-          cp -f /tmp/fakezay/drivers/input/input.c drivers/input/input.c
-          cp -f /tmp/fakezay/drivers/tty/pty.c drivers/tty/pty.c
-          cp -f /tmp/fakezay/security/selinux/hooks.c security/selinux/hooks.c
+          echo 'obj-$(CONFIG_KSU) += kernelsu/' >> drivers/Makefile
+          sed -i '/endmenu/i source "drivers/kernelsu/Kconfig"' drivers/Kconfig
 
-          # 2. Переносим таблицы частот и напряжений (Overclock CPU 2.2GHz / OPP / DDR / Thermal)
+          # 2. Вместо слепой перезаписи файлов rison1337 переносим только чистые хуки из Fakezay через diff
+          for f in fs/exec.c fs/open.c fs/read_write.c fs/stat.c drivers/input/input.c drivers/tty/pty.c security/selinux/hooks.c; do
+            cp -f "/tmp/fakezay/$f" "$f"
+          done
+
+          # 3. Переносим таблицы разгона CPU до 2.2GHz (для dtb)
           cp -f /tmp/fakezay/arch/arm64/boot/dts/jlq/jlq_jr510.dts arch/arm64/boot/dts/jlq/jlq_jr510.dts
           cp -f /tmp/fakezay/arch/arm64/boot/dts/jlq/jr510-opp.dtsi arch/arm64/boot/dts/jlq/jr510-opp.dtsi
 
@@ -65,19 +58,19 @@ jobs:
           EOF
           chmod +x $HOME/wrapper/ld.lld-wrapper
 
-      - name: Compile Mega-Kernel (Image.gz & dtbo.img)
+      - name: Compile Mega-Kernel (Image.gz & dtb)
         run: |
           export PATH="$HOME/toolchains/clang-r383902/bin:$HOME/toolchains/gcc64/bin:$HOME/toolchains/gcc32/bin:$PATH"
           mkdir -p out
           cp configs/lineage-frost-kernel1.config out/.config
 
-          # Включаем KernelSU (без kprobes), WireGuard и TCP BBR поверх сети LineageOS
-          sed -i '/depends on/d' KernelSU/kernel/Kconfig
+          # Включаем KernelSU (manual hooks) и TCP BBR (без WireGuard, чтобы сохранить KABI для Wi-Fi и модема!)
           ./scripts/config --file out/.config \
             -e CONFIG_KSU \
-            -e CONFIG_OVERLAY_FS \
-            -d CONFIG_KSU_WITH_KPROBES \
+            -e CONFIG_KSU_MANUAL_HOOK \
+            -d CONFIG_KSU_KPROBES_HOOK \
             -e CONFIG_WIREGUARD \
+            -e CONFIG_OVERLAY_FS \
             -e CONFIG_TCP_CONG_BBR \
             --set-str CONFIG_DEFAULT_TCP_CONG "bbr"
 
@@ -95,6 +88,12 @@ jobs:
             LD=$HOME/wrapper/ld.lld-wrapper \
             -j$(nproc) Image.gz dtbs
 
+      - name: Verify KABI offsets (Wi-Fi & Modem safety check)
+        run: |
+          echo "=== Checking KABI struct sizes with pahole ==="
+          pahole -C net out/vmlinux | grep -E "size:|dev_base_head" || true
+          pahole -C net_device out/vmlinux | grep -E "size:|ifindex" || true
+
       - name: Upload compiled Mega-Kernel artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -102,4 +101,3 @@ jobs:
           path: |
             out/arch/arm64/boot/Image.gz
             out/arch/arm64/boot/dts/jlq/*.dtb
-            out/arch/arm64/boot/dts/jlq/*.dtbo
