@@ -68,6 +68,7 @@ jobs:
           cp configs/lineage-frost-kernel1.config out/.config
 
           # Включаем KernelSU (без kprobes), WireGuard и TCP BBR поверх сети LineageOS
+          sed -i 's/depends on KPROBES//g' KernelSU/kernel/Kconfig
           ./scripts/config --file out/.config \
             -e CONFIG_KSU \
             -d CONFIG_KSU_WITH_KPROBES \
@@ -81,8 +82,6 @@ jobs:
             CLANG_TRIPLE=aarch64-linux-gnu- \
             LD=$HOME/wrapper/ld.lld-wrapper \
             olddefconfig
-
-          ./scripts/config --file out/.config -e CONFIG_KSU -d CONFIG_KSU_WITH_KPROBES
 
           make O=out ARCH=arm64 LLVM=1 LLVM_IAS=1 \
             CROSS_COMPILE=aarch64-linux-android- \
